@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>團錄整理工具</title>
+    <style>
+        /* ============================================================
+           團錄整理工具 — E-Ink Paper UI
+           ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f5f1eb;
+            --surface: #ffffff;
+            --surface-alt: #e8e4dc;
+            --text: #1a1a1a;
+            --text-muted: #666;
+            --border: #1a1a1a;
+            --border-light: #ccc;
+        }
+
+        body {
+            font-family: "Noto Sans TC", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.04; pointer-events: none; z-index: 99999;
+        }
+
+        /* Hide decorations */
+        .decoration-orb { display: none; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--surface);
+            border: 1px solid var(--border-light);
+            overflow: hidden;
+            padding: 0;
+        }
+
+        /* Remove .glass effects */
+        .glass {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        h1 {
+            background-color: var(--surface-alt);
+            color: var(--text);
+            text-align: center;
+            padding: 24px;
+            font-size: 1.8em;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-light);
+            letter-spacing: 2px;
+            text-shadow: none;
+        }
+
+        /* Color Config */
+        .color-config {
+            margin: 24px;
+            border: 1px solid var(--border-light);
+            padding: 20px;
+        }
+
+        .color-config h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .color-item input[type="text"] {
+            flex: 1;
+        }
+
+        .color-item input[type="color"] {
+            width: 36px;
+            height: 36px;
+            padding: 2px;
+            border: 1px solid var(--border-light);
+            cursor: pointer;
+            background: var(--surface);
+        }
+
+        .hex-input {
+            width: 90px;
+            font-family: monospace;
+        }
+
+        .delete-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-light);
+            background: var(--surface);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .delete-btn:hover { background: var(--surface-alt); color: var(--text); }
+
+        .config-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .config-controls button,
+        .add-character-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-light);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .config-controls button:hover { background: var(--surface-alt); }
+
+        input[type="text"], input[type="color"] {
+            padding: 6px 10px;
+            border: 1px solid var(--border-light);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+        }
+        input[type="text"]:focus { outline: 2px solid var(--border); outline-offset: -2px; }
+
+        /* Two Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 0 24px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 14px;
+            border: 1px solid var(--border-light);
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            background: var(--surface);
+            color: var(--text);
+        }
+        textarea:focus { outline: 2px solid var(--border); outline-offset: -2px; }
+
+        /* Bottom Buttons */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 0 24px 24px;
+        }
+
+        .button-container button {
+            flex: 1;
+            padding: 12px 20px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .button-container button:hover { background: var(--surface-alt); }
+
+        /* Stats */
+        .stats {
+            margin: 0 24px 24px;
+            padding: 12px;
+            border: 1px solid var(--border-light);
+            background: var(--surface-alt);
+            font-size: 13px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--text); }
+        ::selection { background: var(--text); color: var(--bg); }
+
+        @media (max-width: 768px) {
+            .two-column { grid-template-columns: 1fr; }
+            h1 { font-size: 1.4em; padding: 18px; }
+        }
+        /* 角色列表收合與拖曳排序 */
+        #colorConfigList.list-collapsed { display: none; }
+        .char-list-toggle { cursor: pointer; user-select: none; }
+        .char-list-icon { font-size: 0.7em; display: inline-block; }
+        .color-item .drag-handle { cursor: grab; user-select: none; padding: 0 6px; opacity: 0.6; }
+        .color-item .drag-handle:active { cursor: grabbing; }
+        .color-item.dragging { opacity: 0.4; }
+        .color-item.drag-over { outline: 2px dashed currentColor; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <!-- 裝飾色球 -->
+    <div class="decoration-orb orb-1"></div>
+    <div class="decoration-orb orb-2"></div>
+
+    <div class="container glass">
+        <h1>團錄整理工具</h1>
+        
+        <!-- 角色顏色設定區域 -->
+        <div class="color-config">
+            <h3 class="char-list-toggle" onclick="toggleCharList()"><span class="char-list-icon" id="charListIcon">▼</span> 角色顏色設定</h3>
+            <div id="colorConfigList"></div>
+            <div class="config-controls">
+                <button class="add-character-btn" onclick="addCharacter()">新增角色</button>
+                <button onclick="exportConfig()">匯出設定</button>
+                <button onclick="importConfig()">匯入設定</button>
+                <button onclick="clearAllSettings()">清除所有資料</button>
+            </div>
+        </div>
+        
+        <div class="two-column">
+            <div class="input-section">
+                <label for="inputArea">輸入文本：</label>
+                <textarea id="inputArea" placeholder="請在此貼上需要處理的文本..."></textarea>
+            </div>
+            
+            <div class="output-section">
+                <label for="outputArea">輸出結果：</label>
+                <textarea id="outputArea" readonly placeholder="處理結果將顯示在這裡..."></textarea>
+            </div>
+        </div>
+        
+        <div class="button-container">
+            <button onclick="processText()">處理文本</button>
+            <button onclick="copyOutput()">複製到剪貼簿</button>
+            <button onclick="clearAll()">清除全部</button>
+        </div>
+        
+        <div id="stats" class="stats" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 角色顏色定義
+        let palette = {
+            "GM": "#566268"
+        };
+
+        // 保存預設設定
+        const defaultPalette = { ...palette };
+
+        // 頁面載入時初始化顏色設定
+        let dragCharIndex = -1;
+        function reorderPalette(from, to) {
+            const keys = Object.keys(palette);
+            if (from < 0 || to < 0 || from >= keys.length || to >= keys.length || from === to) return;
+            const [k] = keys.splice(from, 1);
+            keys.splice(to, 0, k);
+            const np = {};
+            keys.forEach(key => { np[key] = palette[key]; });
+            palette = np;
+            saveSettings();
+            updateColorConfig();
+        }
+        function toggleCharList() {
+            const list = document.getElementById('colorConfigList');
+            const icon = document.getElementById('charListIcon');
+            const collapsed = list.classList.toggle('list-collapsed');
+            if (icon) icon.textContent = collapsed ? '▶' : '▼';
+            try { localStorage.setItem('charListCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+        }
+        function applyCharListCollapse() {
+            if (localStorage.getItem('charListCollapsed') === '1') {
+                const list = document.getElementById('colorConfigList');
+                const icon = document.getElementById('charListIcon');
+                if (list) list.classList.add('list-collapsed');
+                if (icon) icon.textContent = '▶';
+            }
+        }
+
+        window.onload = function() {
+            loadSettings();
+            updateColorConfig();
+            applyCharListCollapse();
+        };
+
+        // 從本地儲存載入設定
+        function loadSettings() {
+            const savedPalette = localStorage.getItem('characterPalette');
+            if (savedPalette) {
+                try {
+                    palette = JSON.parse(savedPalette);
+                    console.log('已載入儲存的角色設定');
+                } catch (error) {
+                    console.error('載入設定時發生錯誤，使用預設設定');
+                    palette = { ...defaultPalette };
+                }
+            }
+        }
+
+        // 儲存設定到本地儲存
+        function saveSettings() {
+            try {
+                localStorage.setItem('characterPalette', JSON.stringify(palette));
+                console.log('設定已儲存');
+            } catch (error) {
+                console.error('儲存設定時發生錯誤:', error);
+            }
+        }
+
+        function updateColorConfig() {
+            const container = document.getElementById('colorConfigList');
+            container.innerHTML = '';
+            
+            Object.entries(palette).forEach(([character, color], index) => {
+                const item = document.createElement('div');
+                item.className = 'color-item';
+
+                const dragHandle = document.createElement('span');
+                dragHandle.className = 'drag-handle';
+                dragHandle.textContent = '⣿';
+                dragHandle.title = '拖曳排序';
+                dragHandle.draggable = true;
+                dragHandle.addEventListener('dragstart', function(e) {
+                    dragCharIndex = index;
+                    item.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    try { e.dataTransfer.setData('text/plain', String(index)); } catch (_) {}
+                });
+                dragHandle.addEventListener('dragend', function() {
+                    item.classList.remove('dragging');
+                    dragCharIndex = -1;
+                    document.querySelectorAll('.color-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+                });
+                item.addEventListener('dragover', function(e) {
+                    if (dragCharIndex < 0) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    item.classList.add('drag-over');
+                });
+                item.addEventListener('dragleave', function() { item.classList.remove('drag-over'); });
+                item.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    if (dragCharIndex >= 0 && dragCharIndex !== index) reorderPalette(dragCharIndex, index);
+                });
+                
+                // 創建元素
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.value = character;
+                nameInput.addEventListener('change', function() {
+                    updateCharacterName(character, this.value);
+                });
+                
+                const colorPicker = document.createElement('input');
+                colorPicker.type = 'color';
+                colorPicker.value = color;
+                colorPicker.addEventListener('change', function() {
+                    updateCharacterColor(character, this.value);
+                });
+                
+                const hexInput = document.createElement('input');
+                hexInput.type = 'text';
+                hexInput.className = 'hex-input';
+                hexInput.value = color;
+                hexInput.placeholder = '#000000';
+                hexInput.addEventListener('change', function() {
+                    updateCharacterColorFromHex(character, this.value);
+                });
+                hexInput.addEventListener('input', function() {
+                    // 即時驗證但不立即更新
+                    let value = this.value.trim();
+                    if (!value.startsWith('#') && value.length > 0) {
+                        value = '#' + value;
+                    }
+                    this.value = value.toUpperCase();
+                });
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '刪除';
+                deleteBtn.addEventListener('click', function() {
+                    deleteCharacter(character);
+                });
+                
+                // 組裝元素
+                item.appendChild(dragHandle);
+                item.appendChild(nameInput);
+                item.appendChild(colorPicker);
+                item.appendChild(hexInput);
+                item.appendChild(deleteBtn);
+                
+                container.appendChild(item);
+            });
+        }
+
+        function updateCharacterName(oldName, newName) {
+            if (oldName === newName) return;
+            if (newName.trim() === '') {
+                alert('角色名稱不能為空');
+                updateColorConfig();
+                return;
+            }
+            if (palette.hasOwnProperty(newName)) {
+                alert('角色名稱已存在');
+                updateColorConfig();
+                return;
+            }
+            
+            // 創建新的 palette 物件來保持順序
+            const newPalette = {};
+            for (const [key, value] of Object.entries(palette)) {
+                if (key === oldName) {
+                    newPalette[newName] = value;
+                } else {
+                    newPalette[key] = value;
+                }
+            }
+            palette = newPalette;
+            saveSettings();
+            updateColorConfig();
+        }
+
+        function updateCharacterColor(character, color) {
+            palette[character] = color.toUpperCase();
+            saveSettings();
+            updateColorConfig();
+        }
+
+        function updateCharacterColorFromHex(character, hexValue) {
+            // 清理輸入值
+            let cleanHex = hexValue.trim();
+            
+            // 如果沒有 # 開頭，自動添加
+            if (!cleanHex.startsWith('#')) {
+                cleanHex = '#' + cleanHex;
+            }
+            
+            // 驗證 HEX 色碼格式
+            const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            if (hexPattern.test(cleanHex)) {
+                // 如果是 3 位數的 HEX，轉換為 6 位數
+                if (cleanHex.length === 4) {
+                    cleanHex = '#' + cleanHex[1] + cleanHex[1] + cleanHex[2] + cleanHex[2] + cleanHex[3] + cleanHex[3];
+                }
+                palette[character] = cleanHex.toUpperCase();
+                saveSettings();
+                updateColorConfig();
+            } else {
+                alert('請輸入有效的 HEX 色碼格式（例如：#FF0000 或 FF0000）');
+                updateColorConfig(); // 重置為原值
+            }
+        }
+
+        function deleteCharacter(character) {
+            if (confirm(`確定要刪除角色「${character}」嗎？`)) {
+                delete palette[character];
+                saveSettings();
+                updateColorConfig();
+                showStatusMessage(`已刪除角色「${character}」`, 'success');
+            }
+        }
+
+        function addCharacter() {
+            const name = prompt('請輸入新角色名稱：');
+            if (name && name.trim() !== '') {
+                if (palette.hasOwnProperty(name)) {
+                    alert('角色名稱已存在');
+                    return;
+                }
+                palette[name] = '#566268';
+                saveSettings();
+                updateColorConfig();
+                showStatusMessage(`已新增角色「${name}」`, 'success');
+            }
+        }
+
+        function exportConfig() {
+            const configData = JSON.stringify(palette, null, 2);
+            const blob = new Blob([configData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'character_colors.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showStatusMessage('設定已匯出', 'success');
+        }
+
+        function importConfig() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const importedPalette = JSON.parse(e.target.result);
+                            if (confirm('確定要匯入新的設定嗎？這將覆蓋目前的設定。')) {
+                                palette = importedPalette;
+                                saveSettings();
+                                updateColorConfig();
+                                showStatusMessage('設定匯入成功！', 'success');
+                            }
+                        } catch (error) {
+                            showStatusMessage('匯入失敗：檔案格式錯誤', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // 顯示狀態訊息
+        function showStatusMessage(message, type = 'info') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.textContent = message;
+            document.body.appendChild(statusDiv);
+            
+            // 淡入效果
+            setTimeout(() => {
+                statusDiv.style.opacity = '1';
+                statusDiv.style.transform = 'translateY(0)';
+            }, 100);
+            
+            // 3秒後自動移除
+            setTimeout(() => {
+                statusDiv.style.opacity = '0';
+                statusDiv.style.transform = 'translateY(-20px)';
+                setTimeout(() => {
+                    document.body.removeChild(statusDiv);
+                }, 300);
+            }, 3000);
+        }
+
+        // 清除所有本地儲存資料
+        function clearAllSettings() {
+            if (confirm('確定要清除所有儲存的資料嗎？這將刪除所有自訂設定並只保留預設角色（GM）。')) {
+                localStorage.removeItem('characterPalette');
+                // 只保留預設角色 GM
+                palette = {
+                    "GM": "#566268"
+                };
+                saveSettings();
+                updateColorConfig();
+                showStatusMessage('已清除所有資料，只保留預設角色 GM', 'info');
+            }
+        }
+
+        function processText() {
+            const inputText = document.getElementById('inputArea').value;
+            if (!inputText.trim()) {
+                alert('請先輸入文本');
+                return;
+            }
+
+            // 預處理：轉換原始聊天記錄格式
+            console.log("預處理：轉換原始聊天記錄格式...");
+            let preprocessedText = preprocessChatFormat(inputText);
+
+            // 將文本分割成行
+            let lines = preprocessedText.split('\n');
+            let diceCount = 0;
+            let coloredCount = 0;
+
+            // 第一步：處理所有暗骰行
+            console.log("步驟1：替換暗骰...");
+            for (let i = 0; i < lines.length; i++) {
+                const text = lines[i].trim();
+                
+                // 檢查是否為暗骰格式
+                if ((text.startsWith("S") && text.includes("D") && text.includes("＞")) || 
+                    (text.startsWith("SCC") && text.includes("＞"))) {
+                    lines[i] = "【暗骰】";
+                    diceCount++;
+                }
+            }
+            console.log(`已替換 ${diceCount} 個暗骰`);
+
+            // 第二步：刪除空行（保留最後一行）
+            console.log("步驟2：刪除空行...");
+            lines = lines.filter((line, index) => {
+                return line.trim() !== '' || index === lines.length - 1;
+            });
+
+            // 第三步：處理角色對話和上色
+            console.log("步驟3：處理角色對話和上色...");
+            let previousSpeaker = null;
+            let processedLines = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const rawText = lines[i].trim();
+                
+                if (palette.hasOwnProperty(rawText)) {
+                    const currentSpeaker = rawText;
+                    const color = palette[currentSpeaker];
+                    
+                    if (currentSpeaker === previousSpeaker) {
+                        // 跳過重複的角色標籤行，但繼續處理後續對話
+                        let j = i + 1;
+                        while (j < lines.length && !palette.hasOwnProperty(lines[j].trim())) {
+                            const txt = lines[j];
+                            if (!txt.startsWith("<font")) {
+                                processedLines.push(`<font color="${color}">${txt}</font>`);
+                                coloredCount++;
+                            } else {
+                                processedLines.push(txt);
+                            }
+                            j++;
+                        }
+                        i = j - 1;
+                        continue;
+                    }
+                    
+                    // 收集角色下方的對話內容
+                    let j = i + 1;
+                    const block = [];
+                    let blockColored = 0;
+                    let hasContent = false;
+                    while (j < lines.length && !palette.hasOwnProperty(lines[j].trim())) {
+                        const txt = lines[j];
+                        if (txt.trim() !== '') hasContent = true;
+                        if (!txt.startsWith("<font")) {
+                            block.push(`<font color="${color}">${txt}</font>`);
+                            blockColored++;
+                        } else {
+                            block.push(txt);
+                        }
+                        j++;
+                    }
+                    i = j - 1;
+
+                    // 角色下方沒有內容則刪除該角色（不輸出標籤與內容）
+                    if (hasContent) {
+                        processedLines.push(`<font color="${color}"><b>${currentSpeaker}</b></font>`);
+                        previousSpeaker = currentSpeaker;
+                        block.forEach(b => processedLines.push(b));
+                        coloredCount += blockColored;
+                    }
+                } else {
+                    // 不是角色名稱的行，直接加入
+                    processedLines.push(lines[i]);
+                }
+            }
+            console.log(`已上色 ${coloredCount} 行對話`);
+
+            // 第四步：插入空行
+            console.log("步驟4：插入空行...");
+            let finalLines = [];
+            for (let i = 0; i < processedLines.length; i++) {
+                finalLines.push(processedLines[i]);
+                finalLines.push(""); // 插入空行
+            }
+
+            // 輸出結果
+            const result = finalLines.join('\n');
+            document.getElementById('outputArea').value = result;
+
+            // 顯示統計信息
+            const statsElement = document.getElementById('stats');
+            statsElement.innerHTML = `處理完成！總結：替換了 ${diceCount} 個暗骰，上色了 ${coloredCount} 行對話`;
+            statsElement.style.display = 'block';
+
+            console.log("處理完成！");
+            console.log(`總結：替換了 ${diceCount} 個暗骰，上色了 ${coloredCount} 行對話`);
+        }
+
+        // 預處理聊天記錄格式
+        function preprocessChatFormat(inputText) {
+            const lines = inputText.split('\n');
+            const processedLines = [];
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (line === '') continue;
+                
+                // 檢查是否為聊天記錄格式 [頻道] 角色 : 內容
+                const chatPattern = /^\[.*?\]\s*(.+?)\s*:\s*(.*)$/;
+                const match = line.match(chatPattern);
+                
+                if (match) {
+                    const character = match[1].trim();
+                    const content = match[2].trim();
+                    
+                    // 分別添加角色行和內容行
+                    processedLines.push(character);
+                    if (content) {
+                        processedLines.push(content);
+                    }
+                } else {
+                    // 不是聊天記錄格式的行，直接保留
+                    processedLines.push(line);
+                }
+            }
+            
+            return processedLines.join('\n');
+        }
+
+        function copyOutput() {
+            const outputArea = document.getElementById('outputArea');
+            if (!outputArea.value.trim()) {
+                alert('沒有內容可複製');
+                return;
+            }
+            
+            outputArea.select();
+            outputArea.setSelectionRange(0, 99999); // 為了行動裝置
+            
+            try {
+                document.execCommand('copy');
+                showStatusMessage('已複製到剪貼簿', 'success');
+            } catch (err) {
+                console.error('複製失敗:', err);
+                alert('複製失敗，請手動選取並複製');
+            }
+        }
+
+        function clearAll() {
+            if (confirm('確定要清除所有內容嗎？')) {
+                document.getElementById('inputArea').value = '';
+                document.getElementById('outputArea').value = '';
+                document.getElementById('stats').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
